@@ -15,7 +15,7 @@ using namespace cv;
 
 class Pyramid {
 public:
-	Pyramid(Mat& src);  // [v1.1] use kernel provided by opencv
+	Pyramid(Mat& src);
 
 	void get_gaussian_pyramid();
 	void get_laplace_pyramid();
@@ -23,7 +23,7 @@ public:
 	void save_images();
 
 	~Pyramid() {
-		// kernel.~Kernel(); [v1.0]
+		// kernel.~Kernel();
 		GImages.clear();
 		LImages.clear();
 	}
