@@ -34,6 +34,17 @@ void segmentation::on_mouse(int event, int x, int y, int flags)
 		src.copyTo(disp);
 		cur_pt = Point(x, y);
 		rect_region.second = Point(x, y);  // bottom-right point
+		Point temp = rect_region.first;  // to be copied
+		if (rect_region.first.x > rect_region.second.x)
+		{  // exchange x coordinate
+			rect_region.first.x = rect_region.second.x;
+			rect_region.second.x = temp.x;
+		}
+		if (rect_region.first.y > rect_region.second.y)
+		{  // exchange y coordinate
+			rect_region.first.y = rect_region.second.y;
+			rect_region.second.y = temp.y;
+		}
 		rectangle(disp, pre_pt, cur_pt, Scalar(255, 0, 0, 0), 1, 8, 0);  // display rectangular on temp Mat
 		imshow("img", disp);
 		waitKey(0);  // close window
@@ -45,10 +56,9 @@ Mat segmentation::get_masked()
 	// get the region where the object will be segmented
 	Rect rectangle(rect_region.first.x, rect_region.first.y,
 		rect_region.second.x - rect_region.first.x, rect_region.second.y - rect_region.first.y);
-	Mat bgModel, fgModel;  // intermediate variables
-	grabCut(src, mask, rectangle, bgModel, fgModel, 1, GC_INIT_WITH_RECT);  // get the object
-	cv::compare(mask, cv::GC_PR_FGD, mask, cv::CMP_EQ);
-	Mat masked;
+	Mat mask, masked;
+	mask = Mat::zeros(src.size(), CV_8UC1);  // build an image with all pixels initialzed to 0
+	mask(rectangle).setTo(255);  // set the hole white
 	src.copyTo(masked);
 	masked.setTo(0, mask);  // remove the object from the src image, generating a hole
 	return masked;

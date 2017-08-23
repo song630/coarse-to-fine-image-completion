@@ -24,7 +24,7 @@ public:
 	~segmentation() {}
 	void get_rect();
 	void print() {
-		cout << rect_region.first.x << ", " << rect_region.first.y << endl;
+		cout << rect_region.first << ", " << rect_region.second << endl;
 	}
 	Mat get_masked();
 
@@ -32,13 +32,12 @@ private:
 	void on_mouse(int event, int x, int y, int flags);
 
 	// without the function below, setMouseCallback() cannot call on_mouse.
-	// refer to https://stackoverflow.com/questions/14280220/how-to-use-cvsetmousecallback/14281914#14281914
+	// from https://stackoverflow.com/questions/14280220/how-to-use-cvsetmousecallback/14281914#14281914
 	static void on_mouse(int event, int x, int y, int flags, void *ustc) {
 		static_cast<segmentation*>(ustc)->on_mouse(event, x, y, flags);
 	}
 
 	RECT rect_region;
-	Mat mask;
 	Mat src, disp;  // "disp": used for dispalying in on_mouse()
 };
 

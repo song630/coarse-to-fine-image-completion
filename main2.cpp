@@ -6,7 +6,7 @@ using namespace cv;
 int main(void)
 {
 	Mat src;
-	src = imread("D://from_ImageNet/src3.jpg");
+	src = imread("D://from_ImageNet/src2.jpg");
 
 	//  [test segmentation.h]
 	segmentation s(src);
