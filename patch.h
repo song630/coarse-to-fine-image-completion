@@ -41,6 +41,14 @@ public:
 		return offset;
 	}
 
+	// propagate info from "pre_PATCHES[]" to "cur_PATCHS[]"
+	void propagate(const patch& p, const Point& q, int delta_x, int delta_y) {
+		offset.x = p.offset.x + delta_x;
+		offset.y = p.offset.y + delta_y;
+		location = q;
+		similarity = p.similarity;
+	}
+
 	friend class PatchMatch;
 
 private:

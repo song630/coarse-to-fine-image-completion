@@ -3,89 +3,166 @@
 #include <ctime>
 
 #define IMG_PATH "D://from_ImageNet/"  // the file where the images are saved
-#define ITERATIONS 6
+#define ITERATIONS 5
 #define MAX_SIMIARITY 1e6
-#define MAX2(a, b) (((a) > b) ? (a) : (b))
-#define MIN2(a, b) (((a) < b) ? (a) : (b))
+#define MAX2(a, b) (((a) > (b)) ? (a) : (b))
+#define MIN2(a, b) (((a) < (b)) ? (a) : (b))
 
 using namespace std;
 using namespace cv;
 
-PatchMatch::PatchMatch(const string& image1, const string& image2)  // ctor
+float PatchMatch::alpha = 0.5;
+int PatchMatch::threshold = 5;
+
+// ===== threshold ?
+
+PatchMatch::PatchMatch(const Mat& img, const RECT& _roi, const PthOfImg& pre_patches) :
+query(img), roi(_roi), pre_PATCHES(pre_patches)  // ctor
 {
-	Mat temp1, temp2;
-	temp1 = imread(IMG_PATH + image1);  // read the first image
-	temp2 = imread(IMG_PATH + image2);  // read the second image
-	// if image1 and image2 are of different size:
-	width = MIN2(temp1.cols, temp2.cols);
-	height = MIN2(temp1.rows, temp2.rows);
-	cout << "width = " << width << ", " << "height = " << height << endl;
-	query = temp1(Rect(0, 0, width, height));
-	candidate = temp2(Rect(0, 0, width, height));
+	width = query.cols;
+	height = query.rows;
 	if (width <= SIDE_LEN || height <= SIDE_LEN)
 	{  // the image is smaller than a patch
 		cout << "Incorrect image size." << endl;
 		exit(-1);
 	}
+	// notice: in "Point", x-column, y-row.
+	if (roi.first.x < SIDE_LEN - 1 || roi.first.y < SIDE_LEN - 1
+		|| roi.second.x > width - SIDE_LEN || roi.second.y > height - SIDE_LEN)
+	{
+		cout << "The hole is near the boundary." << endl;
+		exit(-1);
+	}
+
+	q_patches.resize(height - SIDE_LEN + 1);  // resize "q_patches"
+	for (int i = 0; i <= height - SIDE_LEN; i++)
+	{
+		q_patches[i].resize(width - SIDE_LEN + 1);
+		for (int j = 0; j <= width - SIDE_LEN; j++)
+			q_patches[i][j] = query(Rect(j, i, SIDE_LEN, SIDE_LEN));  // get all patches in the image
+	}
 }
 
-// notice: class "PatchMatch" does not have a member named "mode"
-// set "location" and "offset", and compute "similarity"
-void PatchMatch::init(const INIT_METHOD mode = direct)
+PatchMatch::~PatchMatch()
 {
-	// first resize PthOfImg
-	PATCHES.resize(height - SIDE_LEN + 1);  // from row 0 to ...
-	q_patches.resize(height - SIDE_LEN + 1);
-	c_patches.resize(height - SIDE_LEN + 1);
-	for (int k = 0; k <= height - SIDE_LEN; k++)
-	{
-		PATCHES[k].resize(width - SIDE_LEN + 1);  // from column 0 to ...
-		q_patches[k].resize(width - SIDE_LEN + 1);
-		c_patches[k].resize(width - SIDE_LEN + 1);
-		for (int m = 0; m <= width - SIDE_LEN; m++)
-		{
-			q_patches[k][m] = query(Rect(m, k, SIDE_LEN, SIDE_LEN));
-			c_patches[k][m] = candidate(Rect(m, k, SIDE_LEN, SIDE_LEN));
-		}
-	}
+	PthOfImg::iterator i1;
+	for (i1 = cur_PATCHES.begin(); i1 != cur_PATCHES.end(); i1++)
+		(*i1).clear();
+	cur_PATCHES.clear();
 
-	Mat patch1, patch2;
-	int i = 0, j = 0;
-	PthOfImg::iterator iter1;
-	if (mode == direct)  // directly assign offset = 0
+	for (i1 = pre_PATCHES.begin(); i1 != pre_PATCHES.end(); i1++)
+		(*i1).clear();
+	pre_PATCHES.clear();
+
+	PatchInQ::iterator i3;
+	for (i3 = q_patches.begin(); i3 != q_patches.end(); i3++)
+		(*i3).clear();
+	q_patches.clear();
+}
+
+// set "location" and "offset", and compute "similarity"
+void PatchMatch::init()
+{
+	int query_col_start = roi.first.x - SIDE_LEN + 1;
+	int query_col_end = roi.second.x + SIDE_LEN - 1;
+	int query_row_start = roi.first.y - SIDE_LEN + 1;
+	int query_row_end = roi.second.y + SIDE_LEN - 1;
+	cur_PATCHES.resize(query_row_end - query_row_start + 1);
+
+	if (pre_PATCHES.size() == 0)  // the top level, randomly assign colors
 	{
-		for (i = 0, iter1 = PATCHES.begin(); iter1 != PATCHES.end(); iter1++, i++)
-		{
-			vector<patch>::iterator iter2;
-			for (j = 0, iter2 = (*iter1).begin(); iter2 != (*iter1).end(); iter2++, j++)
+		for (int i = query_row_start; i <= query_row_end; i++)  // resize "cur_PATCHES[]"
+		{  // traverse every pixel 
+			cur_PATCHES[i].resize(query_col_end - query_col_start + 1);
+			for (int j = query_col_start; j <= query_col_end; j++)
 			{
-				patch temp(i, j);
-				(*iter2) = temp;  // get "location" for *iter2
-				// compute "similarity": (first get the two patches)
-				// i: row, j: column
-				(*iter2).update(Point(0, 0), get_simil(q_patches[i][j], c_patches[i][j]));
-			}
-		}
-	}
-	else  // mode == random
-	{
-		int rand_x, rand_y;  // coordinates of the randomly generated patch
-		for (i = 0, iter1 = PATCHES.begin(); iter1 != PATCHES.end(); iter1++, i++)
-		{
-			vector<patch>::iterator iter2;
-			for (j = 0, iter2 = (*iter1).begin(); iter2 != (*iter1).end(); iter2++, j++)
-			{
-				patch temp(i, j);
-				(*iter2) = temp;  // get "location" for *iter2
-				// compute "similarity" (first get the two patches):
-				// first get random coordinates:
+				patch temp(j, i);  // call ctor
+				cur_PATCHES[i][j] = temp;
+
 				srand((unsigned)time(NULL));
-				rand_x = std::rand() % (height - SIDE_LEN + 1);  // 0 to height - 5 + 1
-				rand_y = std::rand() % (width - SIDE_LEN + 1);  // 0 to width - 5 + 1
-				(*iter2).update(Point(rand_x - i, rand_y - j), get_simil(q_patches[i][j], c_patches[rand_x][rand_y]));
+				// rand_x, rand_y: coordinates of the randomly assigned patch
+				int rand_x = std::rand() % (width - SIDE_LEN + 1);  // 0 to width - 3 + 1
+				int rand_y = std::rand() % (height - SIDE_LEN + 1);  // 0 to height - 3 + 1
+				while (rand_x > roi.first.x - SIDE_LEN && rand_x < roi.second.x + SIDE_LEN  // within the hole
+					&& rand_y > roi.first.y - SIDE_LEN && rand_y < roi.second.y + SIDE_LEN)
+				{  // assign again
+					// ===== srand() again ?
+					rand_x = std::rand() % (width - SIDE_LEN + 1);
+					rand_y = std::rand() % (height - SIDE_LEN + 1);
+				}
+				cur_PATCHES[i][j].update(Point(rand_x - j, rand_y - i), get_simil(q_patches[i][j], q_patches[rand_y][rand_x]));
+			}
+		}  // end-traverse
+		// then compute the colors:
+		color_update();
+	}
+	else  // the even rows and even cols need to be filled
+	{
+		for (int i = query_row_start, int m = 1; i <= query_row_end; i++, m++)  // resize "cur_PATCHES[]"
+		{  // traverse every pixel 
+			cur_PATCHES[i].resize(query_col_end - query_col_start + 1);
+			// m and n: counter
+			for (int j = query_col_start, int n = 1; j <= query_col_end; j++, n++)
+			{
+				if (m % 2 == 1 && n % 2 == 1)  // has a point in "pre_PATCHES[]"
+					cur_PATCHES[i][j].propagate(pre_PATCHES[m][n], Point(i, j), 0, 0);
+				else if (m % 2 == 1 && n % 2 == 0)  // refer to the point on the left
+					cur_PATCHES[i][j].propagate(pre_PATCHES[m][n - 1], Point(i, j), -1, 0);
+				else if (m % 2 == 0 && n % 2 == 1)  // refer to the point up
+					cur_PATCHES[i][j].propagate(pre_PATCHES[m - 1][n], Point(i, j), 0, -1);
+				else  // refer to the point on the top-left
+					cur_PATCHES[i][j].propagate(pre_PATCHES[m - 1][n - 1], Point(i, j), -1, -1);
 			}
 		}
-	}  // end of else-block
+		// compute the colors:
+		float r_color, g_color, b_color;
+		for (int i = roi.first.y, int a = 1; i <= roi.second.y; i++, a++)  // traverse the hole
+		{
+			Vec3b *p1 = query.ptr<Vec3b>(i);  // get the first pixel of row i
+			Vec3b *p2 = query.ptr<Vec3b>(i - 1);  // row (i - 1)
+			for (int j = roi.first.x, int b = 1; j <= roi.second.x; j++, b++)
+			{  // a and b: counters
+				if (a % 2 == 1 && b % 2 == 0)  // refer to the point on the left
+				{
+					p1[j][0] = p1[j - 1][0];
+					p1[j][1] = p1[j - 1][1];
+					p1[j][2] = p1[j - 1][2];
+					continue;
+				}
+				else if (a % 2 == 0 && b % 2 == 1)  // refer to the point up
+				{
+					p1[j][0] = p2[j][0];
+					p1[j][1] = p2[j][1];
+					p1[j][2] = p2[j][2];
+					continue;
+				}
+				else if (a % 2 == 0 && b % 2 == 0)  // refer to the point on the top-left
+				{
+					p1[j][0] = p2[j - 1][0];
+					p1[j][1] = p2[j - 1][1];
+					p1[j][2] = p2[j - 1][2];
+					continue;
+				}
+				r_color = g_color = b_color = 0;
+				// ===== notice: some "dst_pixel" within the hole may be black ?
+				for (int m = i - SIDE_LEN + 1; m <= i + SIDE_LEN - 1; m++)  // traverse all patches containing a pixel
+				{
+					for (int n = j - SIDE_LEN + 1; n <= j + SIDE_LEN - 1; n++)
+					{
+						Point dst_pixel;
+						dst_pixel.x = cur_PATCHES[m][n].get_offset().x + j;
+						dst_pixel.y = cur_PATCHES[m][n].get_offset().y + i;
+						b_color += query.at<Vec3b>(dst_pixel)[0];
+						g_color += query.at<Vec3b>(dst_pixel)[1];
+						r_color += query.at<Vec3b>(dst_pixel)[2];
+					}
+				}
+				p1[j][0] = static_cast<unsigned char>(b_color / (SIDE_LEN * SIDE_LEN));  // blue
+				p1[j][1] = static_cast<unsigned char>(g_color / (SIDE_LEN * SIDE_LEN));  // green
+				p1[j][2] = static_cast<unsigned char>(r_color / (SIDE_LEN * SIDE_LEN));  // red
+			}
+		}
+	}  // end-else
 }
 
 float PatchMatch::get_simil(const Mat& a, const Mat& b)  // private
@@ -95,175 +172,124 @@ float PatchMatch::get_simil(const Mat& a, const Mat& b)  // private
 	return static_cast<float>(sum(sum(rst))[0]);
 }
 
-void PatchMatch::propagation_search(const INIT_METHOD mode = direct)
+void PatchMatch::propagation_search()
 {
 	float s1, s2;  // difference of patch1 and patch2
-
+	int query_col_start = roi.first.x - SIDE_LEN + 1;
+	int query_row_start = roi.first.y - SIDE_LEN + 1;
 	for (int i = 0; i <= ITERATIONS - 1; i++)
-	{  // value of "step" differs in even and odd iterations
+	{
 		if (i % 2 != 0)  // odd iterations
 		{
-			int j = 0, k = 0;
 			int r_x, r_y;  // coordinates of the relative patch
-			PthOfImg::iterator iter1;
-			// traverse every patch
-			for (iter1 = PATCHES.begin(); iter1 != PATCHES.end(); iter1++, j++)
-			{
-				vector<patch>::iterator iter2;
-				k = 0;
-				// if (j % 10 == 0)
-				// cout << "propagation: in row " << j << ", " << "iteration " << i << endl;
-				for (iter2 = (*iter1).begin(); iter2 != (*iter1).end(); iter2++, k++)
+			for (PthOfImg::iterator iter1 = cur_PATCHES.begin(), int j = query_row_start;
+				iter1 != cur_PATCHES.end(); iter1++, j++)
+			{  // traverse every patch
+				for (vector<patch>::iterator iter2 = (*iter1).begin(), int k = query_col_start;
+					iter2 != (*iter1).end(); iter2++, k++)
 				{
-					if (mode == random)  // randomly assigned in init()
-					{
-						r_x = (*iter2).get_offset().x + j;
-						r_y = (*iter2).get_offset().y + k;
-					}
-					else  // mode == direct
-					{
-						r_x = j;
-						r_y = k;
-					}
-
-					if (r_x == 0 && r_y == 0)  // the patch on the top-left
-						continue;
-					else if (r_y == 0)  // j != 0. patches on the left column
-					{
-						s1 = get_simil(q_patches[j][k], c_patches[r_x - 1][r_y]);
-						s2 = MAX_SIMIARITY;
-					}
-					else if (r_x == 0)  // k != 0. patches on the up row
-					{
-						s2 = get_simil(q_patches[j][k], c_patches[r_x][r_y - 1]);
-						s1 = MAX_SIMIARITY;
-					}
-					else  // j != 0 && k != 0
-					{
-						s1 = get_simil(q_patches[j][k], c_patches[r_x - 1][r_y]);
-						s2 = get_simil(q_patches[j][k], c_patches[r_x][r_y - 1]);
-					}
-
+					r_x = (*iter2).get_offset().x + k;  // col
+					r_y = (*iter2).get_offset().y + j;  // row
+					s1 = get_simil(q_patches[j][k], q_patches[r_y][r_x - 1]);  // left
+					s2 = get_simil(q_patches[j][k], q_patches[r_y - 1][r_x]);  // up
 					// then compare and update the mapping
 					float min_s = std::min((*iter2).get_simil(), MIN2(s1, s2));
-					if (min_s == s1)  // up
-						(*iter2).update(Point(r_x - 1 - j, r_y - k), s1);  // patch 1 pixel above
-					else if (min_s == s2)  // left
-						(*iter2).update(Point(r_x - j, r_y - 1 - k), s2);  // patch 1 pixel left
+					if (min_s == s1)  // left
+						(*iter2).update(Point(r_x - 1 - k, r_y - j), s1);  // patch 1 pixel left
+					else if (min_s == s2)  // up
+						(*iter2).update(Point(r_x - k, r_y - 1 - j), s2);  // patch 1 pixel above
 				}
 			}
 		}
-		else  // even iteratoins, scan reversely
+		else  // even iterations, scan reversely
 		{
-			int j = height - SIDE_LEN;
-			int k = width - SIDE_LEN;
 			int r_x, r_y;  // coordinates of the relative patch
-			for (; j >= 0; j--)  // scan from the last row
+			for (int j = roi.second.y; j >= query_row_start; j--)  // scan from the last row
 			{
-				k = width - SIDE_LEN;
-				// if (j % 10 == 0)
-				// cout << "propagation: in row " << j << ", " << "iteration " << i << endl;
-				for (; k >= 0; k--)  // scan from the last column
+				for (int k = roi.second.x; k >= query_col_start; k--)  // scan from the last column
 				{
-					if (mode == random)
-					{  // find the relative patch in "candidate" image
-						r_x = PATCHES[j][k].get_offset().x + j;
-						r_y = PATCHES[j][k].get_offset().y + k;
-					}
-					else  // mode == direct
-					{
-						r_x = j;
-						r_y = k;
-					}
-					if (r_x == height - SIDE_LEN && r_y == width - SIDE_LEN)
-						continue;
-					else if (r_x == height - SIDE_LEN)  // the lowest row
-					{  // get the patch 1 pixel right
-						s1 = get_simil(q_patches[j][k], c_patches[r_x][r_y + 1]);
-						s2 = MAX_SIMIARITY;
-					}
-					else if (r_y == width - SIDE_LEN)  // the right-most column
-					{  // get the patch 1 pixel up
-						s2 = get_simil(q_patches[j][k], c_patches[r_x + 1][r_y]);
-						s1 = MAX_SIMIARITY;
-					}
-					else
-					{
-						s1 = get_simil(q_patches[j][k], c_patches[r_x][r_y + 1]);
-						s2 = get_simil(q_patches[j][k], c_patches[r_x + 1][r_y]);
-					}
-
+					r_x = cur_PATCHES[j][k].get_offset().x + k;  // col
+					r_y = cur_PATCHES[j][k].get_offset().y + j;  // row
+					s1 = get_simil(q_patches[j][k], q_patches[r_y + 1][r_x]);  // down
+					s2 = get_simil(q_patches[j][k], q_patches[r_y][r_x + 1]);  // right
 					// then compare and update the mapping
-					float min_s = std::min(PATCHES[j][k].get_simil(), MIN2(s1, s2));
+					float min_s = std::min(cur_PATCHES[j][k].get_simil(), MIN2(s1, s2));
 					if (min_s == s1)
-						PATCHES[j][k].update(Point(r_x + 1 - j, r_y - k), s1);  // the patch above
-					else if (min_s == s2)  // get the patch on the right
-						PATCHES[j][k].update(Point(r_x - j, r_y + 1 - k), s2);
+						cur_PATCHES[j][k].update(Point(r_x - k, r_y + 1 - j), s1);  // down
+					else if (min_s == s2)
+						cur_PATCHES[j][k].update(Point(r_x + 1 - k, r_y - j), s2);  // right
 				}
 			}
 		}
 
 		// random search:
-		int j = 0, k = 0;  // coordinates of the patch in "query"
 		int rand_x, rand_y;  // coordinates of patch2
 		float s;  // similarity
-		PthOfImg::iterator iter1;
-		// traverse every patch
-		for (iter1 = PATCHES.begin(); iter1 != PATCHES.end(); iter1++, j++)
+		for (PthOfImg::iterator iter1 = cur_PATCHES.begin(), int j = query_row_start;
+			iter1 != cur_PATCHES.end(); iter1++, j++)
 		{
-			k = 0;
-			vector<patch>::iterator iter2;
-			// if (j % 10 == 0)
-			// cout << "random search: in row " << j << ", " << "iteration " << i << endl;
-			for (iter2 = (*iter1).begin(); iter2 != (*iter1).end(); iter2++, k++)
+			for (vector<patch>::iterator iter2 = (*iter1).begin(), int k = query_col_start;
+				iter2 != (*iter1).end(); iter2++, k++)
 			{
-				int search_x = height - SIDE_LEN + 1;  // initial search radius
-				int search_y = width - SIDE_LEN + 1;
+				int search_x = width - SIDE_LEN + 1;  // initial search radius
+				int search_y = height - SIDE_LEN + 1;
 				search_x >>= 1;
 				search_y >>= 1;
 				int left_bound, right_bound, up_bound, down_bound;
 				while (search_x > 1 && search_y > 1)  // break when radius is less than 1 pixel
 				{  // first compute the range:
 					Point off = (*iter2).get_offset();
-					left_bound = MAX2(0, k + off.y - search_y);
-					right_bound = MIN2(width - SIDE_LEN, k + off.y + search_y);
-					up_bound = MAX2(0, j + off.x - search_x);
-					down_bound = MIN2(height - SIDE_LEN, j + off.x + search_x);
+					left_bound = MAX2(0, k + off.x - search_x);
+					right_bound = MIN2(width - SIDE_LEN, k + off.x + search_x);
+					up_bound = MAX2(0, j + off.y - search_y);
+					down_bound = MIN2(height - SIDE_LEN, j + off.y + search_y);
 					srand((unsigned)time(NULL));  // then get a random patch:
-					rand_x = std::rand() % (down_bound - up_bound + 1) + up_bound;
-					rand_y = std::rand() % (right_bound - left_bound + 1) + left_bound;
-					s = get_simil(q_patches[j][k], c_patches[rand_x][rand_y]);
+					rand_y = std::rand() % (down_bound - up_bound + 1) + up_bound;
+					rand_x = std::rand() % (right_bound - left_bound + 1) + left_bound;
+					while ((rand_x - k) * (rand_x - k) + (rand_y - j) * (rand_y - j) >
+						PatchMatch::threshold * PatchMatch::threshold)
+					{
+						rand_y = std::rand() % (down_bound - up_bound + 1) + up_bound;
+						rand_x = std::rand() % (right_bound - left_bound + 1) + left_bound;
+					}
+					s = get_simil(q_patches[j][k], q_patches[rand_y][rand_x]);
 					if (s < (*iter2).get_simil())  // at last update
-						(*iter2).update(Point(rand_x - j, rand_y - k), s);
+						(*iter2).update(Point(rand_x - k, rand_y - j), s);
 					search_x >>= 1;
 					search_y >>= 1;
 				}
 			}
 		}
+		color_update();
 		cout << "iteration " << i << endl;
 	}  // end ITERATIONS
 }
 
-Mat PatchMatch::reshuffle()
+void PatchMatch::color_update()
 {
-	Mat recon;  // reconstructed image
-	query.copyTo(recon);
-	int i, j;
-	Point off;  // get "offset"
-
-	PthOfImg::iterator iter1;
-	for (i = 0, iter1 = PATCHES.begin(); iter1 != PATCHES.end(); iter1++, i++)
+	float r_color, g_color, b_color;
+	for (int i = roi.first.y; i <= roi.second.y; i++)  // traverse the hole
 	{
-		vector<patch>::iterator iter2;
-		for (j = 0, iter2 = (*iter1).begin(); iter2 != (*iter1).end(); iter2++, j++)
+		Vec3b *p1 = query.ptr<Vec3b>(i);  // get the first pixel of row i
+		for (int j = roi.first.x; j <= roi.second.x; j++)
 		{
-			off = (*iter2).get_offset();
-			recon.at<Vec3b>(i, j) = candidate.at<Vec3b>(i + off.x, j + off.y);
+			r_color = g_color = b_color = 0;
+			for (int m = i - SIDE_LEN + 1; m <= i + SIDE_LEN - 1; m++)  // traverse all patches containing a pixel
+			{
+				for (int n = j - SIDE_LEN + 1; n <= j + SIDE_LEN - 1; n++)
+				{  // the location of "dst_pixel" in the relative patch,
+					// is just the location of origin pixel in patch being visited.
+					Point dst_pixel;
+					dst_pixel.x = cur_PATCHES[m][n].get_offset().x + j;
+					dst_pixel.y = cur_PATCHES[m][n].get_offset().y + i;
+					b_color += query.at<Vec3b>(dst_pixel)[0];
+					g_color += query.at<Vec3b>(dst_pixel)[1];
+					r_color += query.at<Vec3b>(dst_pixel)[2];
+				}
+			}
+			p1[j][0] = static_cast<unsigned char>(b_color / (SIDE_LEN * SIDE_LEN));  // blue
+			p1[j][1] = static_cast<unsigned char>(g_color / (SIDE_LEN * SIDE_LEN));  // green
+			p1[j][2] = static_cast<unsigned char>(r_color / (SIDE_LEN * SIDE_LEN));  // red
 		}
 	}
-	// deal with rows at the bottom:
-
-	// deal with columns at the right side:
-
-	return recon;
 }

@@ -19,8 +19,8 @@ int main(void)
 
 	/*  [test pyramid.h]
 	Pyramid P(src);
-	P.get_gaussian_pyramid();
-	P.get_laplace_pyramid();
+	P.compute_gaussian_pyramid();
+	P.compute_laplace_pyramid();
 	Mat real1 = P.get_real_image(0);
 	namedWindow("Display window", CV_WINDOW_AUTOSIZE);
 	imshow("Display window", real1);

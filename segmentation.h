@@ -24,7 +24,7 @@ public:
 	~segmentation() {}
 	void get_rect();
 	void print() {
-		cout << rect_region.first << ", " << rect_region.second << endl;
+		cout << rect_region.first.x << ", " << rect_region.first.y << endl;
 	}
 	Mat get_masked();
 

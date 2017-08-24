@@ -8,9 +8,9 @@
 using namespace std;
 using namespace cv;
 
-Pyramid::Pyramid(Mat& src)
+Pyramid::Pyramid(const Mat& img)
 {
-	int length = MIN2(src.rows, src.cols);
+	int length = MIN2(img.rows, img.cols);
 	int cnt = 0;
 	// when one side of the src image is less than 2 * blur_radius,
 	// stop computing the image on the upper level.
@@ -22,16 +22,16 @@ Pyramid::Pyramid(Mat& src)
 	level = cnt;
 	GImages.resize(level);
 	LImages.resize(level - 1);
-	GImages[0] = src;  // the bottom level
+	GImages[0] = img;  // the bottom level
 }
 
-void Pyramid::get_gaussian_pyramid()  // down-sample
+void Pyramid::compute_gaussian_pyramid()  // down-sample
 {  // at this moment the pyramid only has the bottom level
 	for (int i = 0; i <= level - 2; i++)
 		pyrDown(GImages[i], GImages[i + 1], Size(GImages[i].cols / 2, GImages[i].rows / 2));
 }
 
-void Pyramid::get_laplace_pyramid()  // up-sample
+void Pyramid::compute_laplace_pyramid()  // up-sample
 {
 	Mat temp;
 	for (int i = 0; i <= level - 2; i++)

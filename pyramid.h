@@ -13,12 +13,14 @@
 using namespace std;
 using namespace cv;
 
+typedef vector<Mat> GPyramid;
+typedef vector<Mat> LPyramid;
+
 class Pyramid {
 public:
-	Pyramid(Mat& src);
-
-	void get_gaussian_pyramid();
-	void get_laplace_pyramid();
+	Pyramid(const Mat& img);
+	void compute_gaussian_pyramid();
+	void compute_laplace_pyramid();
 	Mat get_real_image(const int dst_level);  // combine Gaussian and Laplace
 	void save_images();
 
@@ -30,8 +32,6 @@ public:
 
 private:
 	int level;  // "level" should be no more than 9
-	typedef vector<Mat> GPyramid;
-	typedef vector<Mat> LPyramid;
 	// images in Gaussian pyramid: "level",
 	// images in Laplace pyramid: "level" - 1
 	GPyramid GImages;  // Gaussian pyramid
