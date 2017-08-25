@@ -8,7 +8,7 @@
 #include <vector>
 #include <string>
 
-#define SIDE_LEN 3
+#define SIDE_LEN 5
 
 using namespace std;
 using namespace cv;
@@ -17,11 +17,12 @@ class PatchMatch {
 public:
 	typedef vector<vector<patch> > PthOfImg;
 	typedef vector<vector<Mat> > PatchInQ;
+	PthOfImg cur_PATCHES;
 
 	PatchMatch(const Mat& img, const RECT& _roi, const PthOfImg& pre_patches);
 	~PatchMatch();
 	void init();
-	void propagation_search();
+	Mat propagation_search();
 	void print() {
 		for (int i = 0; i <= height - SIDE_LEN; i += 10)
 		{
@@ -41,7 +42,7 @@ private:
 
 	// save all patches within the hole, accessed by PthOfImg[][]
 	// pre_PATCHES: propagated from last level
-	PthOfImg cur_PATCHES, pre_PATCHES;
+	PthOfImg pre_PATCHES;
 
 	PatchInQ q_patches;  // all patches in "query"
 

@@ -18,7 +18,10 @@ typedef vector<Mat> LPyramid;
 
 class Pyramid {
 public:
+	Pyramid() {}
 	Pyramid(const Mat& img);
+	Pyramid(const Pyramid& p);  // copy ctor, used in "completion.cpp"
+	Pyramid& operator=(const Pyramid& p);
 	void compute_gaussian_pyramid();
 	void compute_laplace_pyramid();
 	Mat get_real_image(const int dst_level);  // combine Gaussian and Laplace

@@ -24,14 +24,20 @@ query(img), roi(_roi), pre_PATCHES(pre_patches)  // ctor
 	if (width <= SIDE_LEN || height <= SIDE_LEN)
 	{  // the image is smaller than a patch
 		cout << "Incorrect image size." << endl;
-		exit(-1);
+		exit(1);
 	}
 	// notice: in "Point", x-column, y-row.
 	if (roi.first.x < SIDE_LEN - 1 || roi.first.y < SIDE_LEN - 1
 		|| roi.second.x > width - SIDE_LEN || roi.second.y > height - SIDE_LEN)
 	{
+		cout << "roi.first.x: " << roi.first.x << ", ";
+		cout << "roi.first.y: " << roi.first.y << ", ";
+		cout << "roi.second.x: " << roi.second.x << ", ";
+		cout << "roi.second.y: " << roi.second.y << endl;
+		cout << "height: " << height << ", " << "width: " << width << endl;
 		cout << "The hole is near the boundary." << endl;
-		exit(-1);
+		system("pause");
+		exit(1);
 	}
 
 	q_patches.resize(height - SIDE_LEN + 1);  // resize "q_patches"
@@ -98,11 +104,11 @@ void PatchMatch::init()
 	}
 	else  // the even rows and even cols need to be filled
 	{
-		for (int i = query_row_start, int m = 1; i <= query_row_end; i++, m++)  // resize "cur_PATCHES[]"
+		for (int i = query_row_start, m = 1; i <= query_row_end; i++, m++)  // resize "cur_PATCHES[]"
 		{  // traverse every pixel 
 			cur_PATCHES[i].resize(query_col_end - query_col_start + 1);
 			// m and n: counter
-			for (int j = query_col_start, int n = 1; j <= query_col_end; j++, n++)
+			for (int j = query_col_start, n = 1; j <= query_col_end; j++, n++)
 			{
 				if (m % 2 == 1 && n % 2 == 1)  // has a point in "pre_PATCHES[]"
 					cur_PATCHES[i][j].propagate(pre_PATCHES[m][n], Point(i, j), 0, 0);
@@ -116,11 +122,11 @@ void PatchMatch::init()
 		}
 		// compute the colors:
 		float r_color, g_color, b_color;
-		for (int i = roi.first.y, int a = 1; i <= roi.second.y; i++, a++)  // traverse the hole
+		for (int i = roi.first.y, a = 1; i <= roi.second.y; i++, a++)  // traverse the hole
 		{
 			Vec3b *p1 = query.ptr<Vec3b>(i);  // get the first pixel of row i
 			Vec3b *p2 = query.ptr<Vec3b>(i - 1);  // row (i - 1)
-			for (int j = roi.first.x, int b = 1; j <= roi.second.x; j++, b++)
+			for (int j = roi.first.x, b = 1; j <= roi.second.x; j++, b++)
 			{  // a and b: counters
 				if (a % 2 == 1 && b % 2 == 0)  // refer to the point on the left
 				{
@@ -172,7 +178,7 @@ float PatchMatch::get_simil(const Mat& a, const Mat& b)  // private
 	return static_cast<float>(sum(sum(rst))[0]);
 }
 
-void PatchMatch::propagation_search()
+Mat PatchMatch::propagation_search()
 {
 	float s1, s2;  // difference of patch1 and patch2
 	int query_col_start = roi.first.x - SIDE_LEN + 1;
@@ -182,11 +188,11 @@ void PatchMatch::propagation_search()
 		if (i % 2 != 0)  // odd iterations
 		{
 			int r_x, r_y;  // coordinates of the relative patch
-			for (PthOfImg::iterator iter1 = cur_PATCHES.begin(), int j = query_row_start;
-				iter1 != cur_PATCHES.end(); iter1++, j++)
+			PthOfImg::iterator iter1 = cur_PATCHES.begin();
+			for (int j = query_row_start; iter1 != cur_PATCHES.end(); iter1++, j++)
 			{  // traverse every patch
-				for (vector<patch>::iterator iter2 = (*iter1).begin(), int k = query_col_start;
-					iter2 != (*iter1).end(); iter2++, k++)
+				vector<patch>::iterator iter2 = (*iter1).begin();
+				for (int k = query_col_start; iter2 != (*iter1).end(); iter2++, k++)
 				{
 					r_x = (*iter2).get_offset().x + k;  // col
 					r_y = (*iter2).get_offset().y + j;  // row
@@ -225,11 +231,11 @@ void PatchMatch::propagation_search()
 		// random search:
 		int rand_x, rand_y;  // coordinates of patch2
 		float s;  // similarity
-		for (PthOfImg::iterator iter1 = cur_PATCHES.begin(), int j = query_row_start;
-			iter1 != cur_PATCHES.end(); iter1++, j++)
+		PthOfImg::iterator iter1 = cur_PATCHES.begin();
+		for (int j = query_row_start; iter1 != cur_PATCHES.end(); iter1++, j++)
 		{
-			for (vector<patch>::iterator iter2 = (*iter1).begin(), int k = query_col_start;
-				iter2 != (*iter1).end(); iter2++, k++)
+			vector<patch>::iterator iter2 = (*iter1).begin();
+			for (int k = query_col_start; iter2 != (*iter1).end(); iter2++, k++)
 			{
 				int search_x = width - SIDE_LEN + 1;  // initial search radius
 				int search_y = height - SIDE_LEN + 1;
@@ -263,6 +269,7 @@ void PatchMatch::propagation_search()
 		color_update();
 		cout << "iteration " << i << endl;
 	}  // end ITERATIONS
+	return query;
 }
 
 void PatchMatch::color_update()

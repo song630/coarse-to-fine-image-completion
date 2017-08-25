@@ -22,11 +22,14 @@ class segmentation {
 public:
 	segmentation(const Mat& img) : src(img) {}
 	~segmentation() {}
-	void get_rect();
+	void draw_rect();
 	void print() {
 		cout << rect_region.first.x << ", " << rect_region.first.y << endl;
 	}
 	Mat get_masked();
+	RECT get_rect() {
+		return rect_region;
+	}
 
 private:
 	void on_mouse(int event, int x, int y, int flags);
@@ -37,7 +40,7 @@ private:
 		static_cast<segmentation*>(ustc)->on_mouse(event, x, y, flags);
 	}
 
-	RECT rect_region;
+	RECT rect_region;  // "roi" in patchmatch.h
 	Mat src, disp;  // "disp": used for dispalying in on_mouse()
 };
 

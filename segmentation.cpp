@@ -3,7 +3,7 @@
 using namespace std;
 using namespace cv;
 
-void segmentation::get_rect()
+void segmentation::draw_rect()
 {
 	namedWindow("img");
 	setMouseCallback("img", on_mouse, this);  // call on_mouse()

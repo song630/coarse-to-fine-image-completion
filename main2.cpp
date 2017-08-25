@@ -10,7 +10,7 @@ int main(void)
 
 	//  [test segmentation.h]
 	segmentation s(src);
-	s.get_rect();
+	s.draw_rect();
 	s.print();
 	Mat rst = s.get_masked();
 	namedWindow("masked");
