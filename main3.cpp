@@ -16,6 +16,7 @@ int main(void)
 	Mat rst = solution.image_complete();
 	namedWindow("Completed Image");
 	imshow("Completed Image", rst);
+	imwrite("D://from_ImageNet/completed.jpg", rst);
 	waitKey(0);
 
 	return 0;

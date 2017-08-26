@@ -25,10 +25,10 @@ void completion::initialize()
 		r.first.y = r.first.y / 2 - (r.first.y % 2 == 0);
 		r.second.x = r.second.x / 2 + (r.second.x % 2 == 0);
 		r.second.y = r.second.y / 2 + (r.second.y % 2 == 0);
-		cout << "r.first.x: " << r.first.x << ", ";
-		cout << "r.first.y: " << r.first.y << ", ";
-		cout << "r.second.x: " << r.second.x << ", ";
-		cout << "r.second.y: " << r.second.y << endl;
+		// cout << "r.first.x: " << r.first.x << ", ";
+		// cout << "r.first.y: " << r.first.y << ", ";
+		// cout << "r.second.x: " << r.second.x << ", ";
+		// cout << "r.second.y: " << r.second.y << endl;
 		length >>= 1;
 		row >>= 1;
 		col >>= 1;
@@ -40,6 +40,7 @@ void completion::initialize()
 	}
 	Pyr.compute_gaussian_pyramid();
 	Pyr.compute_laplace_pyramid();
+	cout << "building pyramid: finished." << endl;
 	Pyr.save_images();
 }
 
@@ -56,6 +57,7 @@ Mat completion::image_complete()
 			imwrite("D://from_ImageNet/top.jpg", Pyr.get_real_image(cur_level));
 		PatchMatch PM(Pyr.get_real_image(cur_level), (*i), PATCHES);  // ctor
 		PM.init();
+		cout << "initialize patchmatch: finished." << endl;
 		rst = PM.propagation_search();
 		PATCHES = PM.cur_PATCHES;  // update. to be propagated in next iteration
 	}
