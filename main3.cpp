@@ -1,3 +1,4 @@
+#include "kernel.h"
 #include "pyramid.h"
 #include "segmentation.h"
 #include "patchmatch.h"
@@ -11,7 +12,8 @@ int main(void)
 {
 	Mat src;
 	src = imread("D://from_ImageNet/src2.jpg");
-	completion solution(src);
+	Kernel k(5, 0.8);
+	completion solution(src, k);
 	solution.initialize();
 	Mat rst = solution.image_complete();
 	namedWindow("Completed Image");
@@ -19,5 +21,6 @@ int main(void)
 	imwrite("D://from_ImageNet/completed.jpg", rst);
 	waitKey(0);
 
+	system("pause");
 	return 0;
 }

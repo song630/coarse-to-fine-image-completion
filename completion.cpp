@@ -10,31 +10,26 @@ void completion::initialize()
 {
 	Seg.draw_rect();
 	Mat masked = Seg.get_masked();
-	Pyramid temp(masked);  // call ctor
+	Pyramid temp(Pyr.K, masked);  // call ctor
+	// ===== notice: in class Pyramid, "=" function does not assign Kernel "K"
 	Pyr = temp;
 	roi_vec.push_back(Seg.get_rect());
 	int length = MIN2(masked.rows, masked.cols);
-	int row = masked.rows;
-	int col = masked.cols;
 	RECT r;
-	while (true)
-	{  // get the range of the hole of every level
+	while (true)  // the hole can no longer be zoomed out
+	{
 		r = roi_vec.back();
 		// x = 6, after removal of even cols, x = 2.
 		r.first.x = r.first.x / 2 - (r.first.x % 2 == 0);
 		r.first.y = r.first.y / 2 - (r.first.y % 2 == 0);
-		r.second.x = r.second.x / 2 + (r.second.x % 2 == 0);
-		r.second.y = r.second.y / 2 + (r.second.y % 2 == 0);
-		// cout << "r.first.x: " << r.first.x << ", ";
-		// cout << "r.first.y: " << r.first.y << ", ";
-		// cout << "r.second.x: " << r.second.x << ", ";
-		// cout << "r.second.y: " << r.second.y << endl;
+		r.second.x = r.second.x / 2 - (r.second.x % 2 == 0);
+		r.second.y = r.second.y / 2 - (r.second.y % 2 == 0);
+		cout << "r.first.x: " << r.first.x << ", ";
+		cout << "r.first.y: " << r.first.y << ", ";
+		cout << "r.second.x: " << r.second.x << ", ";
+		cout << "r.second.y: " << r.second.y << endl;
 		length >>= 1;
-		row >>= 1;
-		col >>= 1;
-		if (length <= 2 * KERNEL_SIZE || r.first.x < SIDE_LEN - 1 ||
-			r.first.y < SIDE_LEN - 1 || r.second.x > col - SIDE_LEN
-			|| r.second.y > row - SIDE_LEN)
+		if (length <= 2)
 			break;
 		roi_vec.push_back(r);
 	}
@@ -43,6 +38,9 @@ void completion::initialize()
 	cout << "building pyramid: finished." << endl;
 	Pyr.save_images();
 }
+
+string name1 = "rst1.jpg";
+// string name2 = "real1.jpg";
 
 Mat completion::image_complete()
 {
@@ -53,12 +51,14 @@ Mat completion::image_complete()
 	{
 		int cur_level = distance(i, roi_vec.rend()) - 1;  // dist between two iterators
 		cout << "current level: " << cur_level << endl;
-		if (i == roi_vec.rbegin())
-			imwrite("D://from_ImageNet/top.jpg", Pyr.get_real_image(cur_level));
+		// imwrite("D://from_ImageNet/" + name2, Pyr.get_real_image(cur_level));
+		// name2[4]++;
 		PatchMatch PM(Pyr.get_real_image(cur_level), (*i), PATCHES);  // ctor
 		PM.init();
 		cout << "initialize patchmatch: finished." << endl;
 		rst = PM.propagation_search();
+		imwrite("D://from_ImageNet/" + name1, rst);
+		name1[3]++;
 		PATCHES = PM.cur_PATCHES;  // update. to be propagated in next iteration
 	}
 	return rst;

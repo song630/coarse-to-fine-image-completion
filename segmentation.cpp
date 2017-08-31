@@ -18,7 +18,7 @@ void segmentation::on_mouse(int event, int x, int y, int flags)
 	if (event == CV_EVENT_LBUTTONDOWN)  // left-button down: get init coordinates 
 	{
 		pre_pt = Point(x, y);
-		rect_region.first = Point(x, y);  // top-left point
+		rect_region.first = Point(x - 2, y - 2);  // top-left point
 	}
 	else if (event == CV_EVENT_MOUSEMOVE && !(flags & CV_EVENT_FLAG_LBUTTON))  // left-button up, mouse moving
 		cur_pt = Point(x, y);
@@ -33,7 +33,7 @@ void segmentation::on_mouse(int event, int x, int y, int flags)
 	{
 		src.copyTo(disp);
 		cur_pt = Point(x, y);
-		rect_region.second = Point(x, y);  // bottom-right point
+		rect_region.second = Point(x + 2, y + 2);  // bottom-right point
 		Point temp = rect_region.first;  // to be copied
 		if (rect_region.first.x > rect_region.second.x)
 		{  // exchange x coordinate

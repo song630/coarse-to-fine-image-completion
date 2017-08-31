@@ -17,7 +17,7 @@ using namespace cv;
 
 class completion {  // image completion
 public:
-	completion(const Mat& img) : src(img), Seg(img) {}
+	completion(const Mat& img, const Kernel& k) : src(img), Seg(img), Pyr(k) {}
 	~completion() {
 		Pyr.~Pyramid();
 		Seg.~segmentation();

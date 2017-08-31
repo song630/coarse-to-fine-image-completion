@@ -1,4 +1,6 @@
 #include "segmentation.h"
+#include "kernel.h"
+#include "pyramid.h"
 
 using namespace std;
 using namespace cv;
@@ -13,9 +15,12 @@ int main(void)
 	s.draw_rect();
 	s.print();
 	Mat rst = s.get_masked();
-	namedWindow("masked");
-	imshow("masked", rst);
-	waitKey(0);
+
+	Kernel k(5, 0.8);
+	Pyramid pyr(k, rst);
+	pyr.compute_gaussian_pyramid();
+	pyr.compute_laplace_pyramid();
+	pyr.save_images();
 
 	/*  [test pyramid.h]
 	Pyramid P(src);
