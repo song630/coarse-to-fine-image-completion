@@ -5,6 +5,7 @@
 #ifndef _KERNEL_H_
 #define _KERNEL_H_
 
+#include "segmentation.h"  // use RECT
 #include <opencv2\opencv.hpp>
 #include <iostream>
 #include <cstdlib>
@@ -49,16 +50,18 @@ static const double gaussian_kernel_3[3][3] =
 
 class Kernel {  // Gaussian kernel
 public:
+	// appoint a "blur_radius" and "sigma"
 	Kernel(const int r, const float s) : blur_radius(r), sigma(s) {  // ctor1
 		if (r <= 0 || r % 2 != 1)
 		{
 			cout << "Invalid input of blur radius." << endl;
 			exit(1);
 		}
-		mask.resize(r);
+		mask.resize(r);  // initialize the vector "mask"
 		KernelMask::iterator iter;
 		for (iter = mask.begin(); iter != mask.end(); iter++)
 			(*iter).resize(r);  // r * r kernel
+		compute_normalize();
 	}
 
 	// use accessible kernels
@@ -74,13 +77,8 @@ public:
 		mask.clear();
 	}
 
-	void compute_normalize();
-
-	void normalize_mul_4();  // used to get image at upper level in pyramid
-	void normalize_div_4();  // recover after * 4
-
 	Mat Gaussian_smooth(const Mat& src);
-	Mat Gaussian_smooth_4(const Mat& src);
+	Mat Gaussian_smooth(const Mat& src, const RECT& roi);  // do not compute inside the hole
 	void print();
 	int get_radius() {
 		return blur_radius;
@@ -92,8 +90,10 @@ private:
 	KernelMask mask;
 	const float sigma;
 	// according to http://amitapba.blog.163.com/blog/static/203610207201281992239/,
-	// the program should calculate a matrix whose side is of (6 * sigma + 1).
+	// the program should compute a matrix whose side is of (6 * sigma + 1).
 	const int blur_radius;  // i.e. 3 * 3 or 5 * 5
+
+	void compute_normalize();  // compute the mask
 };
 
 #endif

@@ -12,29 +12,7 @@ Pyramid::Pyramid(const Kernel& k, const Mat& img) : K(k)
 {
 	int length = MIN2(img.rows, img.cols);
 	int cnt = 0;
-	// when one side of the src image is less than 2 * blur_radius,
-	// stop computing the image on the upper level.
-	/*
-	while (true)
-	{
-		cout << "length: " << length << endl;
-		length >>= 1;
-		if (length <= 2 * KERNEL_SIZE)
-			break;
-		cnt++;
-	}
-	*/
-	while (true)
-	{
-		length >>= 1;
-		if (length <= 2)
-			break;
-		cnt++;
-	}
-	level = cnt;
-	GImages.resize(level + 1);
-	LImages.resize(level);
-	GImages[0] = img;  // the bottom level
+	GImages.push_back(img);  // the bottom level
 }
 
 Pyramid::Pyramid(const Pyramid& p) : K(p.K)  // copy ctor
@@ -67,29 +45,16 @@ Pyramid& Pyramid::operator=(const Pyramid& p)
 	return *this;
 }
 
-void Pyramid::compute_gaussian_pyramid()  // down-sample
+void Pyramid::compute_gaussian_pyramid(const vector<RECT>& roi_vec)  // down-sample
 {  // at this moment the pyramid only has the bottom level
-	/*  previous:
+	level = roi_vec.size();  // "level" decided here
 	for (int i = 0; i <= level - 1; i++)
-		pyrDown(GImages[i], GImages[i + 1], Size(GImages[i].cols / 2, GImages[i].rows / 2));
-	*/
-	for (int i = 0; i <= level - 1; i++)
-		GImages[i + 1] = down_sample(i);
+		GImages.push_back(down_sample(i, roi_vec[i]));
 }
 
 void Pyramid::compute_laplace_pyramid()  // up-sample
 {
-	/*  previous:
-	Mat temp;
-	for (int i = 0; i <= level - 1; i++)
-	{  // "-": DoG (difference of Gaussian)
-		pyrUp(GImages[i + 1], temp, Size(GImages[i + 1].cols * 2, GImages[i + 1].rows * 2));
-		// Mat a - b: a and b must be of the same size
-		int n_rows = MIN2(GImages[i].rows, temp.rows);
-		int n_cols = MIN2(GImages[i].cols, temp.cols);
-		LImages[i] = GImages[i](Rect(0, 0, n_cols, n_rows)) - temp(Rect(0, 0, n_cols, n_rows));
-	}
-	*/
+	LImages.resize(level);
 	for (int i = 0; i <= level - 1; i++)
 		LImages[i] = GImages[i] - up_sample(i + 1);
 }
@@ -131,7 +96,7 @@ void Pyramid::save_images()
 }
 
 // will be called in iterations
-Mat Pyramid::down_sample(const int cur_level)
+Mat Pyramid::down_sample(const int cur_level, const RECT& roi)
 {
 	if (GImages[cur_level].empty())
 	{
@@ -146,7 +111,7 @@ Mat Pyramid::down_sample(const int cur_level)
 		exit(1);
 	}
 	// blur src image
-	Mat temp = K.Gaussian_smooth(GImages[cur_level]);
+	Mat temp = K.Gaussian_smooth(GImages[cur_level], roi);
 	int n_row = temp.rows / 2;
 	int n_col = temp.cols / 2;
 	Mat up_img(n_row, n_col, CV_8UC3, Scalar(0, 0, 0));

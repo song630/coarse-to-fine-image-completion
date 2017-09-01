@@ -23,7 +23,7 @@ public:
 	Pyramid(const Kernel& k, const Mat& img);
 	Pyramid(const Pyramid& p);  // copy ctor, used in "completion.cpp"
 	Pyramid& operator=(const Pyramid& p);
-	void compute_gaussian_pyramid();
+	void compute_gaussian_pyramid(const vector<RECT>& roi_vec);
 	void compute_laplace_pyramid();
 	Mat get_real_image(const int dst_level);  // combine Gaussian and Laplace
 	void save_images();
@@ -36,7 +36,7 @@ public:
 	Kernel K;
 
 private:
-	Mat down_sample(const int cur_level);
+	Mat down_sample(const int cur_level, const RECT& roi);
 	Mat up_sample(const int cur_level);
 
 	int level;  // "level" should be no more than 9

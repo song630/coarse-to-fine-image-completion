@@ -14,26 +14,23 @@ void completion::initialize()
 	// ===== notice: in class Pyramid, "=" function does not assign Kernel "K"
 	Pyr = temp;
 	roi_vec.push_back(Seg.get_rect());
-	int length = MIN2(masked.rows, masked.cols);
 	RECT r;
 	while (true)  // the hole can no longer be zoomed out
 	{
 		r = roi_vec.back();
 		// x = 6, after removal of even cols, x = 2.
-		r.first.x = r.first.x / 2 - (r.first.x % 2 == 0);
-		r.first.y = r.first.y / 2 - (r.first.y % 2 == 0);
+		r.first.x = r.first.x / 2;
+		r.first.y = r.first.y / 2;
 		r.second.x = r.second.x / 2 - (r.second.x % 2 == 0);
 		r.second.y = r.second.y / 2 - (r.second.y % 2 == 0);
-		cout << "r.first.x: " << r.first.x << ", ";
-		cout << "r.first.y: " << r.first.y << ", ";
-		cout << "r.second.x: " << r.second.x << ", ";
-		cout << "r.second.y: " << r.second.y << endl;
-		length >>= 1;
-		if (length <= 2)
-			break;
+		cout << "r.first.x: " << r.first.x << ", r.first.y: " << r.first.y << ", ";
+		cout << "r.second.x: " << r.second.x << ", r.second.y: " << r.second.y << endl;
+		if (r.second.x - r.first.x < 2 || r.second.y - r.first.y < 2)
+			break;  // the side length of the hole is less than 2
 		roi_vec.push_back(r);
 	}
-	Pyr.compute_gaussian_pyramid();
+	// imwrite("D://from_ImageNet/aaa.jpg", Pyr.K.Gaussian_smooth(masked, roi_vec[0]));
+	Pyr.compute_gaussian_pyramid(roi_vec);
 	Pyr.compute_laplace_pyramid();
 	cout << "building pyramid: finished." << endl;
 	Pyr.save_images();

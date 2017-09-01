@@ -82,7 +82,6 @@ Mat Kernel::Gaussian_smooth(const Mat& src)  // gaussian blur
 	// will leave a frame of width "blur_radius"
 	for (int i = 0; i <= image.rows - 1; ++i)
 	{
-		// cout << "row " << i << endl;
 		Vec3b *p1 = image.ptr<Vec3b>(i);  // get the first pixel of row i
 		for (int j = 0; j <= image.cols - 1; ++j)
 		{
@@ -115,6 +114,131 @@ Mat Kernel::Gaussian_smooth(const Mat& src)  // gaussian blur
 			p1[j][0] = static_cast<unsigned char>(b_value);
 			p1[j][1] = static_cast<unsigned char>(g_value);
 			p1[j][2] = static_cast<unsigned char>(r_value);
+		}
+	}
+	return image;
+}
+
+Mat Kernel::Gaussian_smooth(const Mat& src, const RECT& roi)  // do not compute when inside the hole
+{
+	Mat image;
+	if (src.rows <= blur_radius || src.cols <= blur_radius)
+	{  // image is smaller than kernel
+		cout << "Cannot blur this image." << endl;
+		system("pause");
+		exit(1);
+	}
+	src.copyTo(image);
+	int center = blur_radius / 2;  // e.g. 5->2
+	float b_value = 0, g_value = 0, r_value = 0;
+	vector<vector<float> > temp_mask;  // does not include pixels inside the hole
+	temp_mask.resize(blur_radius);
+	for (int i = 0; i < blur_radius; i++)
+		temp_mask[i].resize(blur_radius);
+
+	for (int i = 0; i <= image.rows - 1; ++i)  // traverse the whole pic
+	{
+		Vec3b *p1 = image.ptr<Vec3b>(i);  // get the first pixel of row i
+		for (int j = 0; j <= image.cols - 1; ++j)
+		{
+			if (i >= roi.first.y && i <= roi.second.y && j >= roi.first.x && j <= roi.second.x)
+				continue;  // pixels inside the hole
+
+			r_value = 0;
+			g_value = 0;
+			b_value = 0;
+			if (i < roi.first.y - center || j < roi.first.x - center ||
+				i > roi.second.y + center || j > roi.second.x + center)
+			{  // will not be influenced by the hole
+				for (int m = -center; m <= center; m++)  // m: kernel_row
+				{
+					int kernel_row = i + m;
+					int kernel_column;
+					// deal with the boundary: REFLECTION
+					if (i + m < 0)  // below row 0
+						kernel_row = -kernel_row;
+					else if (i + m > image.rows - 1)  // above row max
+						kernel_row = image.rows - 1 - (kernel_row - image.rows);
+					Vec3b *p2 = image.ptr<Vec3b>(kernel_row);
+					for (int n = -center; n <= center; n++)  // n: kernel_column
+					{
+						kernel_column = j + n;
+						// deal with the boundary: REFLECTION
+						if (j + n < 0)  // left of col 0
+							kernel_column = -kernel_column;
+						else if (j + n > image.cols - 1)  // right of col max
+							kernel_column = image.cols - 1 - (kernel_column - image.cols);
+						b_value += p2[kernel_column][0] * mask[m + center][n + center];  // blue
+						g_value += p2[kernel_column][1] * mask[m + center][n + center];  // green
+						r_value += p2[kernel_column][2] * mask[m + center][n + center];  // red
+					}
+				}
+				p1[j][0] = static_cast<unsigned char>(b_value);
+				p1[j][1] = static_cast<unsigned char>(g_value);
+				p1[j][2] = static_cast<unsigned char>(r_value);
+			}  // end-if
+			else  // the kernel has some pixels inside the hole, which should be ignored
+			{
+				// first normalize:
+				float sum = 0.f;
+				for (int m = -center; m <= center; m++)  // m: kernel_row
+				{
+					int kernel_row = i + m;
+					int kernel_column;
+					// deal with the boundary: REFLECTION
+					if (i + m < 0)  // below row 0
+						kernel_row = -kernel_row;
+					else if (i + m > image.rows - 1)  // above row max
+						kernel_row = image.rows - 1 - (kernel_row - image.rows);
+					for (int n = -center; n <= center; n++)  // n: kernel_column
+					{
+						kernel_column = j + n;
+						if (kernel_row >= roi.first.y && kernel_row <= roi.second.y &&
+							kernel_column >= roi.first.x && kernel_column <= roi.second.x)
+						{  // the pixel within the hole
+							temp_mask[m + center][n + center] = 0;
+						}
+						else
+						{
+							temp_mask[m + center][n + center] = mask[m + center][n + center];
+							sum += temp_mask[m + center][n + center];
+						}
+					}
+				}
+				for (int m = 0; m < blur_radius; m++)  // normalize, the sum of weights must be 1.
+				for (int n = 0; n < blur_radius; n++)
+					temp_mask[m][n] /= sum;  // normalization done.
+
+				// then compute the color:
+				for (int m = -center; m <= center; m++)  // m: kernel_row
+				{
+					int kernel_row = i + m;
+					int kernel_column;
+					// deal with the boundary: REFLECTION
+					if (i + m < 0)  // below row 0
+						kernel_row = -kernel_row;
+					else if (i + m > image.rows - 1)  // above row max
+						kernel_row = image.rows - 1 - (kernel_row - image.rows);
+					Vec3b *p2 = image.ptr<Vec3b>(kernel_row);
+					for (int n = -center; n <= center; n++)  // n: kernel_column
+					{
+						kernel_column = j + n;
+						// deal with the boundary: REFLECTION
+						if (j + n < 0)  // left of col 0
+							kernel_column = -kernel_column;
+						else if (j + n > image.cols - 1)  // right of col max
+							kernel_column = image.cols - 1 - (kernel_column - image.cols);
+						if (temp_mask[m + center][n + center] == 0)  // pass
+							continue;
+						b_value += p2[kernel_column][0] * temp_mask[m + center][n + center];  // blue
+						g_value += p2[kernel_column][1] * temp_mask[m + center][n + center];  // green
+						r_value += p2[kernel_column][2] * temp_mask[m + center][n + center];  // red
+					}
+				}
+				p1[j][0] = static_cast<unsigned char>(b_value);
+				p1[j][1] = static_cast<unsigned char>(g_value);
+				p1[j][2] = static_cast<unsigned char>(r_value);
+			}  // end-else
 		}
 	}
 	return image;
