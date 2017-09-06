@@ -23,18 +23,16 @@ public:
 
 	~patch() {}
 
-	void update(const Point& n_offset, float n_similarity) {
+	void update_offset(const Point& n_offset) {
 		offset = n_offset;
-		similarity = n_similarity;
 	}  // update when finding a new patch that is a better match
 
-	float get_simil() {
-		return similarity;
+	void update_sim(const float sim) {
+		similarity = sim;
 	}
 
-	void set_offset(const int _x, const int _y) {
-		offset.x = _x;
-		offset.y = _y;
+	float get_sim() {
+		return similarity;
 	}
 
 	Point get_offset() {

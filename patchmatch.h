@@ -8,7 +8,7 @@
 #include <vector>
 #include <string>
 
-#define SIDE_LEN 5
+#define SIDE_LEN 3
 
 using namespace std;
 using namespace cv;
@@ -28,8 +28,8 @@ public:
 		{
 			for (int j = 0; j <= width - SIDE_LEN; j += 10)
 			{
-				cout << "[" << cur_PATCHES[i][j].get_offset().x << ", ";
-				cout << cur_PATCHES[i][j].get_offset().y << "]" << endl;
+				std::cout << "[" << cur_PATCHES[i][j].get_offset().x << ", ";
+				std::cout << cur_PATCHES[i][j].get_offset().y << "]" << endl;
 			}
 		}
 	}
@@ -47,7 +47,7 @@ private:
 	PatchInQ q_patches;  // all patches in "query"
 
 	const RECT roi;  // top-left and bottom-right points marking a rectangle
-	float get_simil(const Mat& a, const Mat& b);  // calculate similarity
+	float get_sim(const Mat& a, const Mat& b);  // calculate similarity
 	void color_update();
 };
 

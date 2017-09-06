@@ -54,8 +54,10 @@ void segmentation::on_mouse(int event, int x, int y, int flags)
 Mat segmentation::get_masked()
 {
 	// get the region where the object will be segmented
+	// ===== notice: the pixel "rect_region.first" will be black, but "rect_region.second" will not
+	// ===== correction: "+ 1" added
 	Rect rectangle(rect_region.first.x, rect_region.first.y,
-		rect_region.second.x - rect_region.first.x, rect_region.second.y - rect_region.first.y);
+		rect_region.second.x - rect_region.first.x + 1, rect_region.second.y - rect_region.first.y + 1);
 	Mat mask, masked;
 	mask = Mat::zeros(src.size(), CV_8UC1);  // build an image with all pixels initialzed to 0
 	mask(rectangle).setTo(255);  // set the hole white

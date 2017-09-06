@@ -10,7 +10,7 @@ void completion::initialize()
 {
 	Seg.draw_rect();
 	Mat masked = Seg.get_masked();
-	Pyramid temp(Pyr.K, masked);  // call ctor
+	Pyramid temp(Pyr.K, masked, src);  // call ctor
 	// ===== notice: in class Pyramid, "=" function does not assign Kernel "K"
 	Pyr = temp;
 	roi_vec.push_back(Seg.get_rect());
@@ -29,9 +29,9 @@ void completion::initialize()
 			break;  // the side length of the hole is less than 2
 		roi_vec.push_back(r);
 	}
-	// imwrite("D://from_ImageNet/aaa.jpg", Pyr.K.Gaussian_smooth(masked, roi_vec[0]));
+	Pyr.compute_src_pyramid(roi_vec);
 	Pyr.compute_gaussian_pyramid(roi_vec);
-	Pyr.compute_laplace_pyramid();
+	Pyr.compute_laplace_pyramid(roi_vec);
 	cout << "building pyramid: finished." << endl;
 	Pyr.save_images();
 }
@@ -48,11 +48,9 @@ Mat completion::image_complete()
 	{
 		int cur_level = distance(i, roi_vec.rend()) - 1;  // dist between two iterators
 		cout << "current level: " << cur_level << endl;
-		// imwrite("D://from_ImageNet/" + name2, Pyr.get_real_image(cur_level));
-		// name2[4]++;
-		PatchMatch PM(Pyr.get_real_image(cur_level), (*i), PATCHES);  // ctor
+		PatchMatch PM(Pyr.get_real_image(cur_level, *i), (*i), PATCHES);  // ctor
+		cout << "roi: " << (*i).first.x << ", " << (*i).first.y << endl;
 		PM.init();
-		cout << "initialize patchmatch: finished." << endl;
 		rst = PM.propagation_search();
 		imwrite("D://from_ImageNet/" + name1, rst);
 		name1[3]++;
