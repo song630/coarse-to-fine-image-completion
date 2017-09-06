@@ -12,7 +12,7 @@ using namespace std;
 using namespace cv;
 
 float PatchMatch::alpha = 0.5;
-int PatchMatch::threshold = 5;
+int PatchMatch::threshold = 3;
 
 // ===== threshold ?
 
@@ -172,28 +172,51 @@ Mat PatchMatch::propagation_search()
 		cout << "begin iteration " << i << endl;
 		if (i % 2 != 0)  // odd iterations
 		{
-			int r_x, r_y;  // coordinates of the relative patch
 			PthOfImg::iterator iter1 = cur_PATCHES.begin();
 			for (int j = q_row_start; iter1 != cur_PATCHES.end(); iter1++, j++)
 			{  // traverse every patch
 				vector<patch>::iterator iter2 = (*iter1).begin();
 				for (int k = q_col_start; iter2 != (*iter1).end(); iter2++, k++)
 				{
-					r_x = (*iter2).get_offset().x + k;  // col
-					r_y = (*iter2).get_offset().y + j;  // row
-					// in case "r_y - 1" or "r_x - 1" is out of range:
-					s1 = (r_x == 0) ? MAX_SIMIARITY : get_sim(q_patches[j][k], q_patches[r_y][r_x - 1]);  // left
-					s2 = (r_y == 0) ? MAX_SIMIARITY : get_sim(q_patches[j][k], q_patches[r_y - 1][r_x]);  // up
+					if (k == q_col_start && j == q_row_start)  // the top-left corner
+						continue;
+					int dst_x1 = -1, dst_y1 = -1, dst_x2 = -1, dst_y2 = -1;
+					if (k != q_col_start && j != q_row_start)  // not the first row or col
+					{
+						// "dst_x1": the relative patch of the patch 1 pixel left of current patch
+						dst_x1 = cur_PATCHES[j - q_row_start][k - q_col_start - 1].get_offset().x + k;
+						dst_y1 = cur_PATCHES[j - q_row_start][k - q_col_start - 1].get_offset().y + j;
+						// "dst_x2": the relative patch of the patch 1 pixel above current patch
+						dst_x2 = cur_PATCHES[j - q_row_start - 1][k - q_col_start].get_offset().x + k;
+						dst_y2 = cur_PATCHES[j - q_row_start - 1][k - q_col_start].get_offset().y + j;
+					}
+					else if (j == q_row_start && k != q_col_start)  // the first row
+					{
+						// "dst_x1": the relative patch of the patch 1 pixel left of current patch
+						dst_x1 = cur_PATCHES[j - q_row_start][k - q_col_start - 1].get_offset().x + k;
+						dst_y1 = cur_PATCHES[j - q_row_start][k - q_col_start - 1].get_offset().y + j;
+					}
+					else if (j != q_row_start && k == q_col_start)  // the first col
+					{
+						// "dst_x2": the relative patch of the patch 1 pixel above current patch
+						dst_x2 = cur_PATCHES[j - q_row_start - 1][k - q_col_start].get_offset().x + k;
+						dst_y2 = cur_PATCHES[j - q_row_start - 1][k - q_col_start].get_offset().y + j;
+					}
+					dst_x1 = (dst_x1 == width - SIDE_LEN + 1) ? dst_x1 - 1 : dst_x1;
+					dst_y2 = (dst_y2 == height - SIDE_LEN + 1) ? dst_y2 - 1 : dst_y2;
+					s1 = (k == q_col_start) ? MAX_SIMIARITY : get_sim(q_patches[j][k], q_patches[dst_y1][dst_x1]);
+					s2 = (j == q_row_start) ? MAX_SIMIARITY : get_sim(q_patches[j][k], q_patches[dst_y2][dst_x2]);
+
 					// then compare and update the mapping
 					float min_s = std::min((*iter2).get_sim(), MIN2(s1, s2));
 					if (min_s == s1)  // left
 					{  // patch 1 pixel left
-						(*iter2).update_offset(Point(r_x - 1 - k, r_y - j));
+						(*iter2).update_offset(Point(dst_x1 - k, dst_y1 - j));
 						(*iter2).update_sim(s1);
 					}
 					else if (min_s == s2)  // up
 					{
-						(*iter2).update_offset(Point(r_x - k, r_y - 1 - j));
+						(*iter2).update_offset(Point(dst_x2 - k, dst_y2 - j));
 						(*iter2).update_sim(s2);
 					}
 				}
@@ -201,26 +224,49 @@ Mat PatchMatch::propagation_search()
 		}
 		else  // even iterations, scan reversely
 		{
-			int r_x, r_y;  // coordinates of the relative patch
 			for (int j = roi.second.y; j >= q_row_start; j--)  // scan from the last row
 			{
 				for (int k = roi.second.x; k >= q_col_start; k--)  // scan from the last column
 				{
-					r_x = cur_PATCHES[j - q_row_start][k - q_col_start].get_offset().x + k;  // col
-					r_y = cur_PATCHES[j - q_row_start][k - q_col_start].get_offset().y + j;  // row
-					// in case "r_y + 1" or "r_x + 1" is out of range:
-					s1 = (r_y >= query.rows - SIDE_LEN) ? MAX_SIMIARITY : get_sim(q_patches[j][k], q_patches[r_y + 1][r_x]);  // down
-					s2 = (r_x >= query.cols - SIDE_LEN) ? MAX_SIMIARITY : get_sim(q_patches[j][k], q_patches[r_y][r_x + 1]);  // right
+					if (j == roi.second.y && k == roi.second.x)  // the bottom-right corner
+						continue;
+					int dst_x1 = -10, dst_y1 = -10, dst_x2 = -10, dst_y2 = -10;
+					if (j != roi.second.y && k != roi.second.x)  // not the last row or col
+					{
+						// "dst_x1": the relative patch of the patch 1 pixel right of current patch
+						dst_x1 = cur_PATCHES[j - q_row_start][k - q_col_start + 1].get_offset().x + k;
+						dst_y1 = cur_PATCHES[j - q_row_start][k - q_col_start + 1].get_offset().y + j;
+						// "dst_x2": the relative patch of the patch 1 pixel below current patch
+						dst_x2 = cur_PATCHES[j - q_row_start + 1][k - q_col_start].get_offset().x + k;
+						dst_y2 = cur_PATCHES[j - q_row_start + 1][k - q_col_start].get_offset().y + j;
+					}
+					else if (j == roi.second.y && k != roi.second.x)  // the last row
+					{
+						// "dst_x1": the relative patch of the patch 1 pixel right of current patch
+						dst_x1 = cur_PATCHES[j - q_row_start][k - q_col_start + 1].get_offset().x + k;
+						dst_y1 = cur_PATCHES[j - q_row_start][k - q_col_start + 1].get_offset().y + j;
+					}
+					else if (j != roi.second.y && k == roi.second.x)  // the last col
+					{
+						// "dst_x2": the relative patch of the patch 1 pixel below current patch
+						dst_x2 = cur_PATCHES[j - q_row_start + 1][k - q_col_start].get_offset().x + k;
+						dst_y2 = cur_PATCHES[j - q_row_start + 1][k - q_col_start].get_offset().y + j;
+					}
+					dst_x1 = (dst_x1 == -1) ? 0 : dst_x1;
+					dst_y2 = (dst_y2 == -1) ? 0 : dst_y2;
+					s1 = (k == roi.second.x) ? MAX_SIMIARITY : get_sim(q_patches[j][k], q_patches[dst_y1][dst_x1]);
+					s2 = (j == roi.second.y) ? MAX_SIMIARITY : get_sim(q_patches[j][k], q_patches[dst_y2][dst_x2]);
+
 					// then compare and update the mapping
 					float min_s = std::min(cur_PATCHES[j - q_row_start][k - q_col_start].get_sim(), MIN2(s1, s2));
 					if (min_s == s1)
-					{  // down
-						cur_PATCHES[j - q_row_start][k - q_col_start].update_offset(Point(r_x - k, r_y + 1 - j));
+					{  // right
+						cur_PATCHES[j - q_row_start][k - q_col_start].update_offset(Point(dst_x1 - k, dst_y1 - j));
 						cur_PATCHES[j - q_row_start][k - q_col_start].update_sim(s1);
 					}
 					else if (min_s == s2)
-					{  // right
-						cur_PATCHES[j - q_row_start][k - q_col_start].update_offset(Point(r_x + 1 - k, r_y - j));
+					{  // down
+						cur_PATCHES[j - q_row_start][k - q_col_start].update_offset(Point(dst_x2 - k, dst_y2 - j));
 						cur_PATCHES[j - q_row_start][k - q_col_start].update_sim(s2);
 					}
 				}
@@ -281,7 +327,6 @@ void PatchMatch::color_update()
 	int q_col_start = roi.first.x - SIDE_LEN + 1;
 	int q_row_start = roi.first.y - SIDE_LEN + 1;
 	float r_color, g_color, b_color;
-	cout << "in color_update(): roi.first.x = " << roi.first.x << ", roi.first.y = " << roi.first.y << endl;
 	for (int i = roi.first.y; i <= roi.second.y; i++)  // traverse the hole
 	{
 		Vec3b *p1 = query.ptr<Vec3b>(i);  // get the first pixel of row i

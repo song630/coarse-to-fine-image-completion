@@ -25,7 +25,7 @@ void completion::initialize()
 		r.second.y = r.second.y / 2 - (r.second.y % 2 == 0);
 		cout << "r.first.x: " << r.first.x << ", r.first.y: " << r.first.y << ", ";
 		cout << "r.second.x: " << r.second.x << ", r.second.y: " << r.second.y << endl;
-		if (r.second.x - r.first.x < 2 || r.second.y - r.first.y < 2)
+		if (r.second.x - r.first.x + 1 < 2 || r.second.y - r.first.y + 1 < 2)
 			break;  // the side length of the hole is less than 2
 		roi_vec.push_back(r);
 	}
@@ -49,7 +49,6 @@ Mat completion::image_complete()
 		int cur_level = distance(i, roi_vec.rend()) - 1;  // dist between two iterators
 		cout << "current level: " << cur_level << endl;
 		PatchMatch PM(Pyr.get_real_image(cur_level, *i), (*i), PATCHES);  // ctor
-		cout << "roi: " << (*i).first.x << ", " << (*i).first.y << endl;
 		PM.init();
 		rst = PM.propagation_search();
 		imwrite("D://from_ImageNet/" + name1, rst);
