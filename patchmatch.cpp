@@ -3,7 +3,7 @@
 #include <ctime>
 
 #define IMG_PATH "D://from_ImageNet/"  // the file where the images are saved
-#define ITERATIONS 5
+#define ITERATIONS 9
 #define MAX_SIMIARITY 1e6
 #define MAX2(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN2(a, b) (((a) < (b)) ? (a) : (b))
@@ -87,13 +87,13 @@ void PatchMatch::init()
 				cur_PATCHES[i - q_row_start][j - q_col_start] = temp;
 
 				// rand_x, rand_y: coordinates of the randomly assigned patch
-				int rand_x = std::rand() % (width - SIDE_LEN + 1);  // 0 to width - 3 + 1
-				int rand_y = std::rand() % (height - SIDE_LEN + 1);  // 0 to height - 3 + 1
+				int rand_x = std::rand() % (width - SIDE_LEN);  // 0 to width - 3
+				int rand_y = std::rand() % (height - SIDE_LEN);  // 0 to height - 3
 				while (rand_x > roi.first.x - SIDE_LEN && rand_x <= roi.second.x  // within the hole
 					&& rand_y > roi.first.y - SIDE_LEN && rand_y <= roi.second.y)
 				{  // assign again
-					rand_x = std::rand() % (width - SIDE_LEN + 1);
-					rand_y = std::rand() % (height - SIDE_LEN + 1);
+					rand_x = std::rand() % (width - SIDE_LEN);
+					rand_y = std::rand() % (height - SIDE_LEN);
 				}
 				cur_PATCHES[i - q_row_start][j - q_col_start].update_offset(Point(rand_x - j, rand_y - i));
 			}
@@ -297,13 +297,11 @@ Mat PatchMatch::propagation_search()
 					srand((unsigned)time(NULL));  // then get a random patch:
 					rand_y = std::rand() % (down_bound - up_bound + 1) + up_bound;
 					rand_x = std::rand() % (right_bound - left_bound + 1) + left_bound;
-					// cout << "j: " << j << ", " << "k: " << k << endl;
 					while ((rand_x - k) * (rand_x - k) + (rand_y - j) * (rand_y - j) <
 						PatchMatch::threshold * PatchMatch::threshold)
 					{
 						rand_y = std::rand() % (down_bound - up_bound + 1) + up_bound;
 						rand_x = std::rand() % (right_bound - left_bound + 1) + left_bound;
-						// cout << "rand_y: " << rand_y << ", " << "rand_x: " << rand_x << endl;
 					}
 					s = get_sim(q_patches[j][k], q_patches[rand_y][rand_x]);
 					if (s < (*iter2).get_sim())  // at last update
@@ -317,7 +315,16 @@ Mat PatchMatch::propagation_search()
 			}
 		}
 		color_update();
-		cout << "iteration " << i << endl;
+		for (int j = q_row_start; j <= roi.second.y; j++)
+		{
+			for (int k = q_col_start; k <= roi.second.x; k++)
+			{
+				patch temp_p = cur_PATCHES[j - q_row_start][k - q_col_start];
+				int dst_patch_x = temp_p.get_offset().x + k;
+				int dst_patch_y = temp_p.get_offset().y + j;
+				temp_p.update_sim(get_sim(q_patches[j][k], q_patches[dst_patch_y][dst_patch_x]));
+			}
+		}
 	}  // end ITERATIONS
 	return query;
 }
@@ -341,7 +348,6 @@ void PatchMatch::color_update()
 					Point dst_pixel;
 					dst_pixel.x = cur_PATCHES[m - q_row_start][n - q_col_start].get_offset().x + j;
 					dst_pixel.y = cur_PATCHES[m - q_row_start][n - q_col_start].get_offset().y + i;
-					// cout << "dst_pixel.x: " << dst_pixel.x << ", dst_pixel.y: " << dst_pixel.y << endl;
 					// ===== unfixed bug here
 					b_color += query.at<Vec3b>(dst_pixel)[0];
 					g_color += query.at<Vec3b>(dst_pixel)[1];

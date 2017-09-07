@@ -15,18 +15,26 @@ void completion::initialize()
 	Pyr = temp;
 	roi_vec.push_back(Seg.get_rect());
 	RECT r;
+	int width = masked.cols;
+	int height = masked.rows;
 	while (true)  // the hole can no longer be zoomed out
 	{
 		r = roi_vec.back();
-		// x = 6, after removal of even cols, x = 2.
+		// e.g. x = 6, after removal of even cols, x = 2.
 		r.first.x = r.first.x / 2;
 		r.first.y = r.first.y / 2;
 		r.second.x = r.second.x / 2 - (r.second.x % 2 == 0);
 		r.second.y = r.second.y / 2 - (r.second.y % 2 == 0);
-		cout << "r.first.x: " << r.first.x << ", r.first.y: " << r.first.y << ", ";
-		cout << "r.second.x: " << r.second.x << ", r.second.y: " << r.second.y << endl;
-		if (r.second.x - r.first.x + 1 < 2 || r.second.y - r.first.y + 1 < 2)
-			break;  // the side length of the hole is less than 2
+		width /= 2;
+		height /= 2;
+		// cout << "r.first.x: " << r.first.x << ", r.first.y: " << r.first.y << ", ";
+		// cout << "r.second.x: " << r.second.x << ", r.second.y: " << r.second.y << endl;
+		// when to break: the side length of the hole is less than 2,
+		// or the boundary band is less than SIDE_LEN.
+		if (r.second.x - r.first.x + 1 < 2 || r.second.y - r.first.y + 1 < 2 ||
+			r.first.x < SIDE_LEN - 1 || r.first.y < SIDE_LEN - 1 ||
+			r.second.x > width - SIDE_LEN || r.second.y > height - SIDE_LEN)
+			break;
 		roi_vec.push_back(r);
 	}
 	Pyr.compute_src_pyramid(roi_vec);
@@ -37,7 +45,6 @@ void completion::initialize()
 }
 
 string name1 = "rst1.jpg";
-// string name2 = "real1.jpg";
 
 Mat completion::image_complete()
 {

@@ -47,6 +47,7 @@ private:
 	PatchInQ q_patches;  // all patches in "query"
 
 	const RECT roi;  // top-left and bottom-right points marking a rectangle
+
 	float get_sim(const Mat& a, const Mat& b);  // calculate similarity
 	void color_update();
 };
